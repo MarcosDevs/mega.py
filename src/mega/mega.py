@@ -19,7 +19,7 @@ import tqdm
 
 from tenacity import retry, wait_exponential, retry_if_exception_type
 
-from .errors import ValidationError, RequestError
+from .errors import ValidationError, RequestError, FileSizeError
 from .crypto import (a32_to_base64, encrypt_key, base64_url_encode,
                      encrypt_attr, base64_to_a32, base64_url_decode,
                      decrypt_attr, a32_to_str, get_chunks, str_to_a32,
@@ -651,8 +651,8 @@ class Mega:
         self._api_request(request_body)
         nodes = self.get_files()
         return self.get_folder_link(nodes[node_id])
-
-    def download_url(self, url, dest_path=None, dest_filename=None, no_temp_file=False):
+        
+    def download_url(self, url, dest_path=None, dest_filename=None, no_temp_file=False, disable_progress_bar=False, max_filesize=False, progress_hook=None, progress_args=None):
         """
         Download a file by it's public url
         """
@@ -665,7 +665,11 @@ class Mega:
             dest_path=dest_path,
             dest_filename=dest_filename,
             is_public=True,
-            no_temp_file=no_temp_file
+            no_temp_file=no_temp_file,
+            max_filesize=max_filesize,
+            disable_progress_bar=disable_progress_bar,
+            progress_hook=progress_hook,
+            progress_args=progress_args
         )
 
     def _download_file(self,
@@ -675,7 +679,11 @@ class Mega:
                        dest_filename=None,
                        is_public=False,
                        file=None,
-                       no_temp_file=False):
+                       no_temp_file=False,
+                       max_filesize=False,
+                       disable_progress_bar=None,
+                       progress_hook=None,
+                       progress_args=None):
         if file is None:
             if is_public:
                 file_key = base64_to_a32(file_key)
@@ -710,11 +718,11 @@ class Mega:
         file_size = file_data['s']
         attribs = base64_url_decode(file_data['at'])
         attribs = decrypt_attr(attribs, k)
-
-        if dest_filename is not None:
-            file_name = dest_filename
-        else:
-            file_name = attribs['n']
+        
+        if max_filesize and file_size > max_filesize: 
+            raise FileSizeError(f"The file is too large. {file_size} > {max_filesize}")
+            
+        file_name = attribs['n']
 
         input_file = requests.get(file_url, stream=True).raw
 
@@ -727,7 +735,7 @@ class Mega:
         with (tempfile.NamedTemporaryFile(mode='w+b',
                                          prefix='megapy_',
                                          delete=False) if not no_temp_file else open(output_path, 'xb')) as temp_output_file:
-            with tqdm.tqdm(total=file_size, unit='iB', unit_scale=True) as progress_bar:
+            with tqdm.tqdm(total=file_size, unit='iB', disable=disable_progress_bar, unit_scale=True) as progress_bar:
                 k_str = a32_to_str(k)
                 counter = Counter.new(128,
                                       initial_value=((iv[0] << 32) + iv[1]) << 64)
@@ -762,9 +770,19 @@ class Mega:
                     input_to_mac = encryptor.encrypt(last_block)
                     mac_bytes = mac_encryptor.encrypt(input_to_mac)
 
-                    # file_info = os.stat(temp_output_file.name)
+                    file_info = os.stat(temp_output_file.name)
                     # logger.info('%s of %s downloaded', file_info.st_size,
                     #             file_size)
+                    
+                    if progress_hook:
+                        progress_hook({
+                                    'downloaded_bytes': file_info.st_size,
+                                    'total_bytes': file_size,
+                                    'name': file_name,
+                                    'status': 'downloading',
+                                    'args': progress_args                   
+                         })
+                        
                 file_mac = str_to_a32(mac_bytes)
                 # check mac integrity
                 if (file_mac[0] ^ file_mac[1],
@@ -774,6 +792,18 @@ class Mega:
         if not no_temp_file:
             print('Moving temporary file to destination path')
             shutil.move(output_name, output_path)
+            
+        if progress_hook:
+            file_info = os.stat(output_path)
+            
+            progress_hook({
+                        'downloaded_bytes': file_info.st_size,
+                        'total_bytes': file_size,
+                        'name': temp_output_file.name,
+                        'status': 'finished',
+                        'args': progress_args
+             })
+        if dest_filename: output_path = output_path.rename(Path(dest_filename).stem + output_path.suffix)
         return output_path
 
     def upload(self, filename, dest=None, dest_filename=None):
