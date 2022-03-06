@@ -60,3 +60,6 @@ class RequestError(Exception):
 
     def __str__(self):
         return self.message
+
+class FileSizeError(Exception):
+    pass
