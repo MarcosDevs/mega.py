@@ -19,7 +19,7 @@ import tqdm
 
 from tenacity import retry, wait_exponential, retry_if_exception_type
 
-from .errors import ValidationError, RequestError, FileSizeError
+from .errors import ValidationError, RequestError, FileSizeError, BandwidthError
 from .crypto import (a32_to_base64, encrypt_key, base64_url_encode,
                      encrypt_attr, base64_to_a32, base64_url_decode,
                      decrypt_attr, a32_to_str, get_chunks, str_to_a32,
