@@ -29,7 +29,7 @@ _CODE_TO_DESCRIPTIONS = {
     -8: ('EEXPIRED',
          ('The upload target URL you are trying to access has expired. '
           'Please request a fresh one')),
-    -9: ('ENOENT', 'Object (typically, node or user) not found'),
+    -9: ('ENOENT', 'Object (Invalid URL, Deleted or Violated Our Terms of Use) not found'),
     -10: ('ECIRCULAR', 'Circular linkage attempted'),
     -11: ('EACCESS',
           'Access violation (e.g., trying to write to a read-only share)'),
