@@ -63,3 +63,6 @@ class RequestError(Exception):
 
 class FileSizeError(Exception):
     pass
+
+class BandwidthError(Exception):
+    pass
