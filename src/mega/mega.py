@@ -784,7 +784,8 @@ class Mega:
                          })
                         
                 file_mac = str_to_a32(mac_bytes)
-                print (file_mac)
+                if not file_mac: raise BandwidthError("QUOTA OVER: Bandwidth Transfer Quota Exceeded. Try again later")
+                
                 # check mac integrity
                 if (file_mac[0] ^ file_mac[1],
                         file_mac[2] ^ file_mac[3]) != meta_mac:
