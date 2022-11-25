@@ -19,7 +19,7 @@ with open('HISTORY.md', 'r', encoding='utf-8') as hist_file:
     history = hist_file.read()
 
 setup(name='mega.py',
-      version='1.0.9.dev0',
+      version='1.0.10.dev0',
       python_requires='>=3.6',
       packages=find_packages('src', exclude=('tests', )),
       package_dir={'': 'src'},
